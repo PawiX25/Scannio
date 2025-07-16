@@ -1,0 +1,19 @@
+{
+  "name": "scannio-electron-app",
+  "version": "1.0.0",
+  "description": "A basic Electron app setup.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^30.0.0"
+  },
+  "dependencies": {
+    "@hyzyla/pdfium": "^2.1.9",
+    "epub-gen": "^0.1.0",
+    "pdfjs-dist": "^4.2.67",
+    "sharp": "^0.34.3",
+    "tesseract.js": "^6.0.1"
+  }
+}

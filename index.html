@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>PDF to EPUB/eBook Converter</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="title-bar">
+      <div class="title">Scannio</div>
+      <div class="title-bar-btns">
+        <button id="minimize-btn" class="title-bar-btn">
+          <svg x="0px" y="0px" viewBox="0 0 10.2 1"><rect x="0" y="0" width="10.2" height="1"></rect></svg>
+        </button>
+        <button id="maximize-btn" class="title-bar-btn">
+          <svg class="maximize-icon" x="0px" y="0px" viewBox="0 0 10.2 10.2"><path d="M0,0v10.2h10.2V0H0z M9.2,9.2H1V1h8.2V9.2z"></path></svg>
+          <svg class="restore-icon" x="0px" y="0px" viewBox="0 0 10.2 10.2"><path d="M2.1,0v2.1H0v8.1h8.1V8.1h2.1V0H2.1z M7.1,9.2H1V3.1h6.1V9.2z M9.2,7.1H8.1V2.1H3.1V1h6.1V7.1z"></path></svg>
+        </button>
+        <button id="close-btn" class="title-bar-btn">
+          <svg x="0px" y="0px" viewBox="0 0 10.2 10.2"><polygon points="10.2,0.7 9.5,0 5.1,4.4 0.7,0 0,0.7 4.4,5.1 0,9.5 0.7,10.2 5.1,5.8 9.5,10.2 10.2,9.5 5.8,5.1"></polygon></svg>
+        </button>
+      </div>
+    </div>
+    <div class="container">
+      <header>
+        <h1>Scannio</h1>
+        <p>Your intelligent document converter.</p>
+        <button id="settingsBtn">Settings</button>
+      </header>
+      <main>
+        <div id="main-content">
+          <div class="card">
+            <div class="form-group">
+              <label for="pdfInput">1. Select PDF file</label>
+              <input type="file" id="pdfInput" accept="application/pdf" />
+            </div>
+            <div class="form-group">
+              <label for="langSelect">2. Select OCR Language(s)</label>
+              <p class="info-text">Select one or more languages for text recognition. First-time use will download the required files.</p>
+              <select id="langSelect" multiple>
+                <option value="eng" selected>English</option>
+                <option value="pol">Polish</option>
+                <option value="deu">German</option>
+                <option value="fra">French</option>
+                <option value="spa">Spanish</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="customLang">3. (Optional) Add language codes</label>
+              <p class="info-text">For other languages, enter Tesseract language codes, separated by '+'. For example, 'chi_sim' for Simplified Chinese.</p>
+              <input type="text" id="customLang" placeholder="e.g., jpn, rus, chi_sim+chi_tra">
+            </div>
+            <button id="convertBtn">Convert & Improve</button>
+          </div>
+        </div>
+        <div id="settings-content" class="hidden">
+          <div class="card">
+            <div class="form-group">
+              <label for="outputFormat">Output Format</label>
+              <select id="outputFormat">
+                <option value="epub" selected>EPUB</option>
+                <option value="txt">TXT</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div id="progress-container" class="hidden">
+          <div class="spinner"></div>
+          <p id="progress-text">Starting...</p>
+        </div>
+        <div id="result" class="hidden"></div>
+      </main>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>
