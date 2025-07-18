@@ -53,8 +53,10 @@ convertBtn.addEventListener('click', async () => {
         return;
     }
 
+    const ocrEngine = document.getElementById('ocrEngine').value;
+
     try {
-        const outputPath = await window.electronAPI.convertPDF({ arrayBuffer, languages, outputFormat });
+        const outputPath = await window.electronAPI.convertPDF({ arrayBuffer, languages, outputFormat, ocrEngine });
         progressContainer.classList.add('hidden');
         resultDiv.classList.remove('hidden');
 

@@ -50,7 +50,15 @@
               <p class="info-text">For other languages, enter Tesseract language codes, separated by '+'. For example, 'chi_sim' for Simplified Chinese.</p>
               <input type="text" id="customLang" placeholder="e.g., jpn, rus, chi_sim+chi_tra">
             </div>
-            <button id="convertBtn">Convert & Improve</button>
+            <div class="form-group">
+              <label for="ocrEngine">4. Select OCR Engine</label>
+              <select id="ocrEngine">
+                <option value="tesseract" selected>Tesseract OCR</option>
+                <option value="ai_vision">AI Vision OCR</option>
+              </select>
+              <p class="info-text">"AI Vision OCR" requires a running LM Studio instance with a vision-capable model.</p>
+            </div>
+            <button id="convertBtn">Convert</button>
           </div>
         </div>
         <div id="settings-content" class="hidden">

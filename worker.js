@@ -16,17 +16,93 @@ function postProgress(jobId, text) {
   parentPort.postMessage({ jobId, type: 'progress', text });
 }
 
-async function extractTextFromPDF(buffer, languages, jobId) {
+async function extractTextWithAIVision(jobId, pages) {
+  postProgress(jobId, 'Starting AI Vision OCR...');
+  const cleanedPages = [];
+
+  for (let i = 0; i < pages.length; i++) {
+    const { imageBuffer } = pages[i];
+    const pageNumber = i + 1;
+    postProgress(jobId, `Processing page ${pageNumber} of ${pages.length} with AI Vision...`);
+    const systemPrompt = `You are a universal, high-fidelity OCR engine. Your sole purpose is to transcribe text from an image with perfect accuracy, regardless of the language.
+
+**PRIMARY DIRECTIVE: DETECT, THEN TRANSCRIBE**
+First, auto-detect the primary language of the text. Then, using the rules of that specific language, perform a flawless transcription.
+
+**CRITICAL PROCESSING RULES:**
+
+1.  **LANGUAGE-AWARE CHARACTER FIDELITY:** This is your most important task. Once you detect the language, you MUST meticulously transcribe all characters specific to it.
+    *   Pay extreme attention to all diacritics, accents, and special characters (e.g., 'ñ', 'ç', 'ü', 'ö', 'å', 'ø', 'ł', 'ß', etc.).
+    *   Do not substitute or omit these characters. Their accuracy is paramount.
+
+2.  **RECONSTRUCT HYPHENATED WORDS:** This rule is universal. If a word is split with a hyphen at the end of a line (e.g., "transcrip-"), you MUST join it with its remainder on the next line (e.g., "tion") to form the complete, single word ("transcription"). The splitting hyphen must be removed from the final output.
+
+3.  **TRANSCRIBE WITH ABSOLUTE LITERALISM (NO HALLUCINATIONS):**
+    *   Your function is to transcribe, not interpret or "fix". Transcribe the exact letters and words you see.
+    *   Do not guess or substitute visually similar words. If a word seems unusual, archaic, or technical, transcribe it exactly as it appears.
+    *   If a section is genuinely impossible to read due to a blur or damage, use the placeholder '[unreadable]'.
+
+4.  **ISOLATE THE MAIN BODY TEXT:**
+    *   You MUST completely ignore and exclude any text that is not part of the main content.
+    *   **Specifically, EXCLUDE all page numbers, headers, and footers.** These are metadata, not content.
+
+5.  **PRESERVE ORIGINAL FORMATTING:**
+    *   Maintain all original line breaks, paragraph breaks, and indentation.
+    *   Accurately reproduce all punctuation, including quotation marks and different types of dashes (e.g., '–' vs. '-').
+
+**YOUR TASK:**
+Following these strict, universal rules, provide a perfect transcription of the main text body from the attached image. If the image contains no text, your entire output must be exactly: "[NO TEXT DETECTED]".
+`;
+
+    try {
+      const imageBase64 = imageBuffer.toString('base64');
+      const response = await fetch('http://localhost:1234/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'local-model',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'image_url', image_url: { url: `data:image/png;base64,${imageBase64}` } },
+                { type: 'text', text: 'Extract text from this image.' }
+              ]
+            },
+            { role: 'system', content: systemPrompt }
+          ],
+          temperature: 0.2,
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+      
+      const jsonResponse = await response.json();
+      const cleanedText = jsonResponse.choices[0].message.content;
+      cleanedPages.push(cleanedText);
+
+    } catch (e) {
+      postProgress(jobId, `AI Vision OCR for page ${pageNumber} failed: ${e.message}.`);
+      cleanedPages.push('');
+    }
+  }
+
+  postProgress(jobId, 'AI Vision OCR complete!');
+  return cleanedPages.map((text, i) => `\n--- Page ${i + 1} ---\n` + text).join('');
+}
+
+async function extractTextFromPDF(jobId, buffer, languages, ocrEngine) {
   postProgress(jobId, 'Checking for text layer in PDF...');
   try {
     const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    const doc = await getDocument({ data: buffer, cMapUrl: cmapUrl, cMapPacked: true, standardFontDataUrl }).promise;
+    const doc = await getDocument({ data: buffer, cMapUrl, cMapPacked: true, standardFontDataUrl }).promise;
     let fullText = '';
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
       const textContent = await page.getTextContent();
       if (textContent.items.length === 0) {
-        throw new Error('No text layer found. Falling back to OCR.');
+        throw new Error('No text layer found on this page. Falling back to OCR.');
       }
       const pageText = textContent.items.map(item => item.str).join(' ');
       fullText += `\n--- Page ${i} ---\n` + pageText;
@@ -35,78 +111,65 @@ async function extractTextFromPDF(buffer, languages, jobId) {
     return fullText;
   } catch (e) {
     postProgress(jobId, 'No text layer found. Starting OCR process...');
-    return extractTextWithOCR(buffer, languages, jobId);
+    return extractTextWithOCR(jobId, buffer, languages, ocrEngine);
   }
 }
 
-async function extractTextWithOCR(buffer, languages, jobId) {
-  const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'scannio-ocr-'));
+async function extractTextWithOCR(jobId, buffer, languages, ocrEngine) {
   let library;
   try {
     postProgress(jobId, 'Converting PDF to images...');
     library = await PDFiumLibrary.init();
     const document = await library.loadDocument(buffer);
 
-    async function renderPage(page) {
-      const image = await page.render({
+    const renderPromises = document.pages().map(page => 
+      page.render({
         scale: 3,
         render: (options) => sharp(options.data, {
-          raw: {
-            width: options.width,
-            height: options.height,
-            channels: 4,
-          },
+          raw: { width: options.width, height: options.height, channels: 4 },
         }).png().toBuffer(),
-      });
-      return { content: Buffer.from(image.data) };
-    }
-
-    const renderPromises = [];
-    for (const page of document.pages()) {
-      renderPromises.push(renderPage(page));
-    }
+      }).then(image => ({ imageBuffer: Buffer.from(image.data) }))
+    );
 
     const pngPages = await Promise.all(renderPromises);
     document.destroy();
 
-    const pageCount = pngPages.length;
-    postProgress(jobId, `Found ${pageCount} pages. Starting OCR with languages: ${languages}...`);
-
-    const maxWorkers = Math.min(os.cpus().length || 4, 4);
-    const workers = [];
-    for (let w = 0; w < maxWorkers; w++) {
-      const worker = await Tesseract.createWorker(languages, 1);
-      workers.push(worker);
+    if (ocrEngine === 'ai_vision') {
+      return await extractTextWithAIVision(jobId, pngPages);
     }
 
-    let roundRobin = 0;
-    const fullTextParts = new Array(pageCount);
-    let pagesComplete = 0;
+    const pageCount = pngPages.length;
+    postProgress(jobId, `Found ${pageCount} pages. Starting parallel OCR with languages: ${languages}...`);
 
-    const ocrPromises = pngPages.map(async (page, idx) => {
-      const pageNumber = idx + 1;
-      const worker = workers[roundRobin];
-      roundRobin = (roundRobin + 1) % workers.length;
-      const { data: { text } } = await worker.recognize(page.content);
-      fullTextParts[idx] = `\n--- Page ${pageNumber} ---\n` + text;
+    const maxWorkers = Math.min(os.cpus().length || 4, 4);
+    const workers = await Promise.all(Array(maxWorkers).fill(0).map(() => Tesseract.createWorker(languages, 1)));
+    
+    let pagesComplete = 0;
+    const ocrPromises = pngPages.map(async ({ imageBuffer }, idx) => {
+      const worker = workers[idx % maxWorkers];
+      const { data: { text } } = await worker.recognize(imageBuffer);
       pagesComplete++;
       postProgress(jobId, `Processing page ${pagesComplete} of ${pageCount}...`);
+      return { ocrText: text, pageNum: idx + 1 };
     });
 
-    await Promise.all(ocrPromises);
+    const ocrResults = await Promise.all(ocrPromises);
     await Promise.all(workers.map(w => w.terminate()));
 
-    return fullTextParts.join('');
+    ocrResults.sort((a, b) => a.pageNum - b.pageNum);
+
+    const fullText = ocrResults.map(p => `\n--- Page ${p.pageNum} ---\n` + p.ocrText).join('');
+    return fullText;
+
   } finally {
     if (library) library.destroy();
-    await fs.promises.rm(tempDir, { recursive: true, force: true });
   }
 }
 
 parentPort.on('message', async (msg) => {
-  const { jobId, buffer, languages } = msg;
+  const { jobId, buffer, languages, ocrEngine } = msg;
   try {
-    const text = await extractTextFromPDF(Buffer.from(buffer), languages, jobId);
+    const text = await extractTextFromPDF(jobId, Buffer.from(buffer), languages, ocrEngine);
     parentPort.postMessage({ jobId, type: 'done', text });
   } catch (e) {
     parentPort.postMessage({ jobId, type: 'error', error: e.message || String(e) });
