@@ -115,6 +115,61 @@ async function extractTextFromPDF(jobId, buffer, languages, ocrEngine) {
   }
 }
 
+const { spawn } = require('child_process');
+
+async function extractTextWithPaddleOCR(jobId, pages) {
+  postProgress(jobId, 'Starting PaddleOCR...');
+  const cleanedPages = [];
+
+  for (let i = 0; i < pages.length; i++) {
+    const { imageBuffer } = pages[i];
+    const pageNumber = i + 1;
+    postProgress(jobId, `Processing page ${pageNumber} of ${pages.length} with PaddleOCR...`);
+
+    const tempImagePath = path.join(os.tmpdir(), `scannio_page_${pageNumber}.png`);
+    await fs.promises.writeFile(tempImagePath, imageBuffer);
+
+    try {
+      const pythonProcess = spawn('python', [path.join(__dirname, 'build', 'run_ocr', 'run_paddleocr.py'), tempImagePath]);
+
+      let output = '';
+      for await (const chunk of pythonProcess.stdout) {
+        output += chunk;
+      }
+
+      let error = '';
+      for await (const chunk of pythonProcess.stderr) {
+        error += chunk;
+      }
+
+      const exitCode = await new Promise((resolve) => {
+        pythonProcess.on('close', resolve);
+      });
+
+      if (exitCode !== 0) {
+        throw new Error(`PaddleOCR script exited with code ${exitCode}: ${error}`);
+      }
+
+      const result = JSON.parse(output);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      const pageText = result.map(line => line[1][0]).join(' ');
+      cleanedPages.push(pageText);
+
+    } catch (e) {
+      postProgress(jobId, `PaddleOCR for page ${pageNumber} failed: ${e.message}.`);
+      cleanedPages.push('');
+    } finally {
+      await fs.promises.unlink(tempImagePath);
+    }
+  }
+
+  postProgress(jobId, 'PaddleOCR complete!');
+  return cleanedPages.map((text, i) => `\n--- Page ${i + 1} ---\n` + text).join('');
+}
+
 async function extractTextWithOCR(jobId, buffer, languages, ocrEngine) {
   let library;
   try {
@@ -136,10 +191,13 @@ async function extractTextWithOCR(jobId, buffer, languages, ocrEngine) {
 
     if (ocrEngine === 'ai_vision') {
       return await extractTextWithAIVision(jobId, pngPages);
+    } else if (ocrEngine === 'paddle') {
+      return await extractTextWithPaddleOCR(jobId, pngPages);
     }
 
     const pageCount = pngPages.length;
     postProgress(jobId, `Found ${pageCount} pages. Starting parallel OCR with languages: ${languages}...`);
+
 
     const maxWorkers = Math.min(os.cpus().length || 4, 4);
     const workers = await Promise.all(Array(maxWorkers).fill(0).map(() => Tesseract.createWorker(languages, 1)));
