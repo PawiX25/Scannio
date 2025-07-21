@@ -16,7 +16,7 @@ function postProgress(jobId, text) {
   parentPort.postMessage({ jobId, type: 'progress', text });
 }
 
-async function extractTextWithAIVision(jobId, pages) {
+async function extractTextWithAIVision(jobId, pages, lmStudioEndpoint) {
   postProgress(jobId, 'Starting AI Vision OCR...');
   const cleanedPages = [];
 
@@ -56,7 +56,7 @@ Following these strict, universal rules, provide a perfect transcription of the 
 
     try {
       const imageBase64 = imageBuffer.toString('base64');
-      const response = await fetch('http://localhost:1234/v1/chat/completions', {
+      const response = await fetch(lmStudioEndpoint || 'http://localhost:1234/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -92,7 +92,7 @@ Following these strict, universal rules, provide a perfect transcription of the 
   return cleanedPages.map((text, i) => `\n--- Page ${i + 1} ---\n` + text).join('');
 }
 
-async function extractTextFromPDF(jobId, buffer, languages, ocrEngine) {
+async function extractTextFromPDF(jobId, buffer, languages, ocrEngine, lmStudioEndpoint) {
   postProgress(jobId, 'Checking for text layer in PDF...');
   try {
     const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -111,7 +111,7 @@ async function extractTextFromPDF(jobId, buffer, languages, ocrEngine) {
     return fullText;
   } catch (e) {
     postProgress(jobId, 'No text layer found. Starting OCR process...');
-    return extractTextWithOCR(jobId, buffer, languages, ocrEngine);
+    return extractTextWithOCR(jobId, buffer, languages, ocrEngine, lmStudioEndpoint);
   }
 }
 
@@ -170,7 +170,7 @@ async function extractTextWithPaddleOCR(jobId, pages) {
   return cleanedPages.map((text, i) => `\n--- Page ${i + 1} ---\n` + text).join('');
 }
 
-async function extractTextWithOCR(jobId, buffer, languages, ocrEngine) {
+async function extractTextWithOCR(jobId, buffer, languages, ocrEngine, lmStudioEndpoint) {
   let library;
   try {
     postProgress(jobId, 'Converting PDF to images...');
@@ -190,7 +190,7 @@ async function extractTextWithOCR(jobId, buffer, languages, ocrEngine) {
     document.destroy();
 
     if (ocrEngine === 'ai_vision') {
-      return await extractTextWithAIVision(jobId, pngPages);
+      return await extractTextWithAIVision(jobId, pngPages, lmStudioEndpoint);
     } else if (ocrEngine === 'paddle') {
       return await extractTextWithPaddleOCR(jobId, pngPages);
     }
@@ -225,9 +225,9 @@ async function extractTextWithOCR(jobId, buffer, languages, ocrEngine) {
 }
 
 parentPort.on('message', async (msg) => {
-  const { jobId, buffer, languages, ocrEngine } = msg;
+  const { jobId, buffer, languages, ocrEngine, lmStudioEndpoint } = msg;
   try {
-    const text = await extractTextFromPDF(jobId, Buffer.from(buffer), languages, ocrEngine);
+    const text = await extractTextFromPDF(jobId, Buffer.from(buffer), languages, ocrEngine, lmStudioEndpoint);
     parentPort.postMessage({ jobId, type: 'done', text });
   } catch (e) {
     parentPort.postMessage({ jobId, type: 'error', error: e.message || String(e) });

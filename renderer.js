@@ -54,9 +54,10 @@ convertBtn.addEventListener('click', async () => {
     }
 
     const ocrEngine = document.getElementById('ocrEngine').value;
+    const lmStudioEndpoint = document.getElementById('lmStudioEndpoint').value;
 
     try {
-        const outputPath = await window.electronAPI.convertPDF({ arrayBuffer, languages, outputFormat, ocrEngine });
+        const outputPath = await window.electronAPI.convertPDF({ arrayBuffer, languages, outputFormat, ocrEngine, lmStudioEndpoint });
         progressContainer.classList.add('hidden');
         resultDiv.classList.remove('hidden');
 

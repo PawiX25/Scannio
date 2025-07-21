@@ -99,7 +99,7 @@ ipcMain.on('maximize-window', (event) => {
 });
 ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
 
-ipcMain.handle('convert-pdf', async (event, { arrayBuffer, languages, outputFormat, ocrEngine }) => {
+ipcMain.handle('convert-pdf', async (event, { arrayBuffer, languages, outputFormat, ocrEngine, lmStudioEndpoint }) => {
   const sender = event.sender;
   const buffer = Buffer.from(arrayBuffer);
   const jobId = nextJobId++;
@@ -110,7 +110,7 @@ ipcMain.handle('convert-pdf', async (event, { arrayBuffer, languages, outputForm
     const textPromise = new Promise((resolve, reject) => {
       pendingJobs.set(jobId, { resolve, reject, sender });
     });
-    worker.postMessage({ jobId, buffer, languages, ocrEngine });
+    worker.postMessage({ jobId, buffer, languages, ocrEngine, lmStudioEndpoint });
 
     const text = await textPromise;
     safeSend(sender, 'conversion-progress', 'Text extracted. Generating output file...');
