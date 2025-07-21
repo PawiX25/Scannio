@@ -155,7 +155,7 @@ async function extractTextWithPaddleOCR(jobId, pages) {
         throw new Error(result.error);
       }
 
-      const pageText = result.map(line => line[1][0]).join(' ');
+      const pageText = result[0]?.rec_texts?.join('\n') || '';
       cleanedPages.push(pageText);
 
     } catch (e) {
