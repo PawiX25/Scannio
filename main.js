@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, net } = require('electron');
 const { Worker } = require('worker_threads');
 const fs = require('fs');
 const path = require('path');
@@ -99,7 +99,64 @@ ipcMain.on('maximize-window', (event) => {
 });
 ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
 
-ipcMain.handle('convert-pdf', async (event, { arrayBuffer, languages, outputFormat, ocrEngine, lmStudioEndpoint }) => {
+ipcMain.handle('get-google-models', async (event, apiKey) => {
+  if (!apiKey) return [];
+  return new Promise((resolve) => {
+    const request = net.request({
+      method: 'GET',
+      url: `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+    });
+
+    let body = '';
+    request.on('response', (response) => {
+      response.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      response.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          if (data.models) {
+            const models = data.models
+              .filter(m => 
+                m.supportedGenerationMethods.includes('generateContent') &&
+                m.name.includes('gemini') &&
+                (m.name.includes('vision') || m.name.includes('pro'))
+              )
+              .map(m => ({ name: m.name, displayName: m.displayName }))
+              .sort((a, b) => {
+                const versionA = parseFloat(a.displayName.match(/[\d\.]+/)?.[0] || '0');
+                const versionB = parseFloat(b.displayName.match(/[\d\.]+/)?.[0] || '0');
+                if (versionB !== versionA) {
+                  return versionB - versionA;
+                }
+                return b.displayName.localeCompare(a.displayName);
+              });
+            resolve(models);
+          } else {
+            console.error('Failed to fetch Google AI models: No models in response', data);
+            resolve([]);
+          }
+        } catch (e) {
+          console.error('Failed to parse Google AI models response:', e.message);
+          resolve([]);
+        }
+      });
+       response.on('error', (error) => {
+        console.error('Error during Google AI models fetch response:', error.message);
+        resolve([]);
+      });
+    });
+
+    request.on('error', (error) => {
+      console.error('Failed to fetch Google AI models:', error.message);
+      resolve([]);
+    });
+
+    request.end();
+  });
+});
+
+ipcMain.handle('convert-pdf', async (event, { arrayBuffer, languages, outputFormat, ocrEngine, lmStudioEndpoint, googleApiKey, googleModel, mistralApiKey }) => {
   const sender = event.sender;
   const buffer = Buffer.from(arrayBuffer);
   const jobId = nextJobId++;
@@ -110,7 +167,7 @@ ipcMain.handle('convert-pdf', async (event, { arrayBuffer, languages, outputForm
     const textPromise = new Promise((resolve, reject) => {
       pendingJobs.set(jobId, { resolve, reject, sender });
     });
-    worker.postMessage({ jobId, buffer, languages, ocrEngine, lmStudioEndpoint });
+    worker.postMessage({ jobId, buffer, languages, ocrEngine, lmStudioEndpoint, googleApiKey, googleModel, mistralApiKey });
 
     const text = await textPromise;
     safeSend(sender, 'conversion-progress', 'Text extracted. Generating output file...');

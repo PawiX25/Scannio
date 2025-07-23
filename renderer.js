@@ -29,6 +29,39 @@ window.electronAPI.onConversionProgress((text) => {
     progressText.textContent = text;
 });
 
+const googleApiKeyInput = document.getElementById('googleApiKey');
+const googleModelSelect = document.getElementById('googleModel');
+
+let debounceTimer;
+googleApiKeyInput.addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(async () => {
+    const apiKey = googleApiKeyInput.value.trim();
+    googleModelSelect.innerHTML = '<option>Loading models...</option>';
+    googleModelSelect.disabled = true;
+    if (apiKey) {
+      const models = await window.electronAPI.getGoogleModels(apiKey);
+      googleModelSelect.innerHTML = ''; // Clear loading message
+      if (models && models.length > 0) {
+        models.forEach(model => {
+          const option = document.createElement('option');
+          option.value = model.name;
+          option.textContent = model.displayName;
+          if (model.name.includes('gemini-2.5-pro')) { 
+            option.selected = true;
+          }
+          googleModelSelect.appendChild(option);
+        });
+        googleModelSelect.disabled = false;
+      } else {
+        googleModelSelect.innerHTML = '<option>No vision models found</option>';
+      }
+    } else {
+      googleModelSelect.innerHTML = '<option>Enter API key first</option>';
+    }
+  }, 500); 
+});
+
 convertBtn.addEventListener('click', async () => {
     if (!pdfInput.files.length) {
         alert('Please select a PDF file.');
@@ -55,9 +88,18 @@ convertBtn.addEventListener('click', async () => {
 
     const ocrEngine = document.getElementById('ocrEngine').value;
     const lmStudioEndpoint = document.getElementById('lmStudioEndpoint').value;
+    const googleApiKey = googleApiKeyInput.value;
+    const googleModel = googleModelSelect.value;
+    const mistralApiKey = document.getElementById('mistralApiKey').value;
+
+    if ((ocrEngine === 'google' && !googleApiKey) || (ocrEngine === 'mistral' && !mistralApiKey)) {
+      alert(`Please enter the API key for the selected OCR engine in Settings.`);
+      progressContainer.classList.add('hidden');
+      return;
+    }
 
     try {
-        const outputPath = await window.electronAPI.convertPDF({ arrayBuffer, languages, outputFormat, ocrEngine, lmStudioEndpoint });
+        const outputPath = await window.electronAPI.convertPDF({ arrayBuffer, languages, outputFormat, ocrEngine, lmStudioEndpoint, googleApiKey, googleModel, mistralApiKey });
         progressContainer.classList.add('hidden');
         resultDiv.classList.remove('hidden');
 

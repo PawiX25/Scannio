@@ -55,9 +55,11 @@
               <select id="ocrEngine">
                 <option value="tesseract" selected>Tesseract OCR</option>
                 <option value="paddle">PaddleOCR</option>
-                <option value="ai_vision">AI Vision OCR</option>
+                <option value="ai_vision">AI Vision (LM Studio)</option>
+                <option value="google">Google AI Vision</option>
+                <option value="mistral">Mistral OCR</option>
               </select>
-              <p class="info-text">"AI Vision OCR" requires a running LM Studio instance with a vision-capable model.</p>
+              <p class="info-text">"AI Vision" requires a running LM Studio instance. Google/Mistral require API keys.</p>
             </div>
             <button id="convertBtn">Convert</button>
           </div>
@@ -75,6 +77,20 @@
               <label for="lmStudioEndpoint">LM Studio API Endpoint</label>
               <input type="text" id="lmStudioEndpoint" value="http://localhost:1234/v1/chat/completions">
               <p class="info-text">The full URL of your running LM Studio compatible API endpoint.</p>
+            </div>
+            <div class="form-group">
+              <label for="googleApiKey">Google AI API Key</label>
+              <input type="password" id="googleApiKey" placeholder="Enter your Google AI API Key">
+            </div>
+            <div class="form-group">
+              <label for="googleModel">Google AI Model</label>
+              <select id="googleModel" disabled>
+                <option>Enter API key first</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="mistralApiKey">Mistral API Key</label>
+              <input type="password" id="mistralApiKey" placeholder="Enter your Mistral API Key">
             </div>
           </div>
         </div>

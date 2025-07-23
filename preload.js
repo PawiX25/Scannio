@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   convertPDF: (data) => ipcRenderer.invoke('convert-pdf', data),
+  getGoogleModels: (apiKey) => ipcRenderer.invoke('get-google-models', apiKey),
   onConversionProgress: (callback) => ipcRenderer.on('conversion-progress', (_event, value) => callback(value)),
   minimizeWindow: () => ipcRenderer.send('minimize-window'),
   maximizeWindow: () => ipcRenderer.send('maximize-window'),
