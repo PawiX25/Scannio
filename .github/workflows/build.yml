@@ -33,6 +33,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install snapcraft
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo snap install snapcraft --classic
+
       - name: Build and release application
         run: npm run pack -- --publish always
         env:
