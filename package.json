@@ -13,6 +13,7 @@
     "@google/generative-ai": "^0.24.1",
     "@hyzyla/pdfium": "^2.1.9",
     "@mistralai/mistralai": "^1.7.4",
+    "electron-store": "^10.1.0",
     "epub-gen": "^0.1.0",
     "node-fetch": "^2.7.0",
     "pdfjs-dist": "^4.2.67",

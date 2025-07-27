@@ -119,6 +119,20 @@ button:hover {
     opacity: 0.8;
 }
 
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+.button-group button {
+    flex: 1;
+}
+
+.button-group .secondary {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
 #progress-container {
     text-align: center;
     margin-top: 1.5rem;

@@ -35,23 +35,7 @@
               <input type="file" id="pdfInput" accept="application/pdf" />
             </div>
             <div class="form-group">
-              <label for="langSelect">2. Select OCR Language(s)</label>
-              <p class="info-text">Select one or more languages for text recognition. First-time use will download the required files.</p>
-              <select id="langSelect" multiple>
-                <option value="eng" selected>English</option>
-                <option value="pol">Polish</option>
-                <option value="deu">German</option>
-                <option value="fra">French</option>
-                <option value="spa">Spanish</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="customLang">3. (Optional) Add language codes</label>
-              <p class="info-text">For other languages, enter Tesseract language codes, separated by '+'. For example, 'chi_sim' for Simplified Chinese.</p>
-              <input type="text" id="customLang" placeholder="e.g., jpn, rus, chi_sim+chi_tra">
-            </div>
-            <div class="form-group">
-              <label for="ocrEngine">4. Select OCR Engine</label>
+              <label for="ocrEngine">2. Select OCR Engine</label>
               <select id="ocrEngine">
                 <option value="tesseract" selected>Tesseract OCR</option>
                 <option value="paddle">PaddleOCR</option>
@@ -61,7 +45,27 @@
               </select>
               <p class="info-text">"AI Vision" requires a running LM Studio instance. Google/Mistral require API keys.</p>
             </div>
-            <button id="convertBtn">Convert</button>
+            <div class="form-group hidden" id="language-selection">
+              <label for="langSelect">3. Select OCR Language(s)</label>
+              <p class="info-text">Select one or more languages for text recognition. First-time use will download the required files.</p>
+              <select id="langSelect" multiple>
+                <option value="eng" selected>English</option>
+                <option value="pol">Polish</option>
+                <option value="deu">German</option>
+                <option value="fra">French</option>
+                <option value="spa">Spanish</option>
+              </select>
+            </div>
+            <div class="form-group hidden" id="custom-language-selection">
+              <label for="customLang">4. (Optional) Add language codes</label>
+              <p class="info-text">For other languages, enter Tesseract language codes, separated by '+'. For example, 'chi_sim' for Simplified Chinese.</p>
+              <input type="text" id="customLang" placeholder="e.g., jpn, rus, chi_sim+chi_tra">
+            </div>
+            <div class="button-group">
+              <button id="convertBtn">Convert</button>
+              <button id="clearBtn" class="secondary">Clear</button>
+              <button id="cancelBtn" class="hidden secondary">Cancel</button>
+            </div>
           </div>
         </div>
         <div id="settings-content" class="hidden">

@@ -4,6 +4,23 @@ const fs = require('fs');
 const path = require('path');
 const Epub = require('epub-gen');
 
+let store = null;
+async function initStore() {
+  const { default: Store } = await import('electron-store');
+  store = new Store({
+    defaults: {
+      outputFormat: 'epub',
+      lmStudioEndpoint: 'http://localhost:1234/v1/chat/completions',
+      googleApiKey: '',
+      googleModel: '',
+      mistralApiKey: '',
+      ocrEngine: 'tesseract',
+      languages: ['eng'],
+      customLanguages: ''
+    }
+  });
+}
+
 function safeSend(webContents, channel, ...args) {
   if (webContents && !webContents.isDestroyed()) {
     webContents.send(channel, ...args);
@@ -98,6 +115,32 @@ ipcMain.on('maximize-window', (event) => {
   }
 });
 ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
+ipcMain.on('cancel-conversion', (event) => {
+  const job = Array.from(pendingJobs.values()).find(p => p.sender === event.sender);
+  if (job) {
+    worker.terminate();
+    job.reject(new Error('Conversion cancelled by user.'));
+  }
+});
+
+ipcMain.handle('get-settings', async () => {
+  if (!store) await initStore();
+  return store.store;
+});
+
+ipcMain.handle('save-setting', async (event, key, value) => {
+  if (!store) await initStore();
+  store.set(key, value);
+  return true;
+});
+
+ipcMain.handle('save-settings', async (event, settings) => {
+  if (!store) await initStore();
+  Object.keys(settings).forEach(key => {
+    store.set(key, settings[key]);
+  });
+  return true;
+});
 
 ipcMain.handle('get-google-models', async (event, apiKey) => {
   if (!apiKey) return [];
@@ -184,7 +227,10 @@ ipcMain.handle('convert-pdf', async (event, { arrayBuffer, languages, outputForm
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await initStore();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
