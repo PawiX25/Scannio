@@ -4,7 +4,25 @@
   "description": "A basic Electron app setup.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "electron-builder"
+  },
+  "build": {
+    "appId": "com.pawix.scannio",
+    "productName": "Scannio",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "worker.js",
+      "index.html",
+      "styles.css",
+      "node_modules/",
+      "build/run_ocr/run_paddleocr.py"
+    ],
+    "directories": {
+      "output": "dist"
+    }
   },
   "devDependencies": {
     "electron": "^30.0.0"
