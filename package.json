@@ -8,6 +8,7 @@
     "pack": "electron-builder"
   },
   "build": {
+    "asar": false,
     "appId": "com.pawix.scannio",
     "productName": "Scannio",
     "files": [
@@ -31,6 +32,8 @@
       "**/*.dll",
       "**/*.so",
       "**/*.dylib",
+      "worker.js",
+      "node_modules/sharp/**",
       "node_modules/@img/**",
       "node_modules/@hyzyla/**",
       "node_modules/@napi-rs/**"
@@ -49,6 +52,7 @@
     "node-fetch": "^2.7.0",
     "pdfjs-dist": "^4.2.67",
     "sharp": "^0.34.3",
-    "tesseract.js": "^6.0.1"
+    "tesseract.js": "^6.0.1",
+    "zod": "^3.25.76"
   }
 }

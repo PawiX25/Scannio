@@ -27,7 +27,26 @@ function safeSend(webContents, channel, ...args) {
   }
 }
 
-const worker = new Worker(path.join(__dirname, 'worker.js'));
+function createWorker() {
+  const candidates = [
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', 'worker.js'),
+    path.join(__dirname, 'worker.js'),
+  ];
+
+  const workerPath = candidates.find(p => fs.existsSync(p));
+  if (!workerPath) {
+    console.error('Unable to locate worker.js in any known location:', candidates);
+    return null;
+  }
+
+  const w = new Worker(workerPath);
+  w.on('online', () => console.log('Worker thread started:', workerPath));
+  w.on('error', err => console.error('Worker thread error:', err));
+  w.on('exit', code => console.log('Worker thread exited with code', code));
+  return w;
+}
+
+const worker = createWorker();
 let nextJobId = 1;
 const pendingJobs = new Map();
 
@@ -36,6 +55,7 @@ worker.on('message', (msg) => {
   const job = pendingJobs.get(jobId);
   if (!job) return;
   if (type === 'progress') {
+console.log('Worker message', msg.type);
     safeSend(job.sender, 'conversion-progress', msg.text);
   } else if (type === 'done') {
     job.resolve(msg.text);
@@ -207,10 +227,10 @@ ipcMain.handle('convert-pdf', async (event, { arrayBuffer, languages, outputForm
   try {
     safeSend(sender, 'conversion-progress', 'Starting conversion...');
 
-    const textPromise = new Promise((resolve, reject) => {
-      pendingJobs.set(jobId, { resolve, reject, sender });
-    });
-    worker.postMessage({ jobId, buffer, languages, ocrEngine, lmStudioEndpoint, googleApiKey, googleModel, mistralApiKey });
+         const textPromise = new Promise((resolve, reject) => {
+       pendingJobs.set(jobId, { resolve, reject, sender });
+     });
+     worker.postMessage({ jobId, buffer, languages, ocrEngine, lmStudioEndpoint, googleApiKey, googleModel, mistralApiKey });
 
     const text = await textPromise;
     safeSend(sender, 'conversion-progress', 'Text extracted. Generating output file...');
